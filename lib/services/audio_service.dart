@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:spas_dd/services/tflite_service.dart';
 import 'dart:typed_data';
 import 'dart:async';
+import 'dart:typed_data';
 
 import '../main.dart';
 
@@ -13,6 +14,7 @@ class AudioService with ChangeNotifier {
   bool isRecording = false;
   final List<double> _recordedSamples = [];
   final List<double> _noiseSamples = [];
+  StreamController<Uint8List>? _audioStreamController;
 
   AudioService() {
     _initRecorder();
@@ -38,27 +40,28 @@ class AudioService with ChangeNotifier {
     isRecording = true;
     notifyListeners();
 
+    // Создаем контроллер потока для аудио данных
+    _audioStreamController = StreamController<Uint8List>();
+    _audioStreamController!.stream.listen((buffer) {
+      final samples = _convertToFloat32(buffer);
+      _recordedSamples.addAll(samples);
+    });
+
     await _recorder.startRecorder(
       codec: Codec.pcm16,
       sampleRate: 16000,
       numChannels: 1,
-      toStream: true,  // Добавьте это
+      toStream: _audioStreamController!.sink,
     );
-
-    // Добавьте обработку потока
-    _recorder.onProgress!.listen((event) {
-      if (event.decibels != null) {
-        final buffer = event.buffer;
-        if (buffer != null) {
-          final samples = _convertToFloat32(buffer);
-          _recordedSamples.addAll(samples);
-        }
-      }
-    });
   }
 
   Future<void> stopRecording() async {
     await _recorder.stopRecorder();
+
+    // Закрываем контроллер потока
+    await _audioStreamController?.close();
+    _audioStreamController = null;
+
     isRecording = false;
     notifyListeners();
 
@@ -92,6 +95,7 @@ class AudioService with ChangeNotifier {
   }
 
   void dispose() {
+    _audioStreamController?.close();
     _recorder.closeRecorder();
     super.dispose();
   }
@@ -103,15 +107,28 @@ class AudioService with ChangeNotifier {
     }
 
     _recordedSamples.clear();
+
+    // Создаем контроллер потока для аудио данных
+    _audioStreamController = StreamController<Uint8List>();
+    _audioStreamController!.stream.listen((buffer) {
+      final samples = _convertToFloat32(buffer);
+      _recordedSamples.addAll(samples);
+    });
+
     await _recorder.startRecorder(
       codec: Codec.pcm16,
       sampleRate: 16000,
-      numChannels: 1
+      numChannels: 1,
+      toStream: _audioStreamController!.sink,
     );
 
     // Записываем 1.5 сек, затем останавливаем
     await Future.delayed(const Duration(milliseconds: 1500));
     await _recorder.stopRecorder();
+
+    // Закрываем контроллер потока
+    await _audioStreamController?.close();
+    _audioStreamController = null;
 
     final audio = _normalize(_recordedSamples);
     final context = navigatorKey.currentContext!;

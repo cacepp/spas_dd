@@ -20,19 +20,29 @@ class TFLiteService with ChangeNotifier {
 
   Future<void> _loadModels() async {
     try {
-      _noiseReductionInterpreter = await Interpreter.fromAsset(
-        'assets/models/noise_reduction_model.tflite',
-        options: options,
-      );
+      // Добавляем обработку ошибок при загрузке моделей
+      try {
+        _noiseReductionInterpreter = await Interpreter.fromAsset(
+          'assets/models/noise_reduction_model.tflite',
+          options: options,
+        );
+        debugPrint('✅ Модель шумоподавления загружена');
+      } catch (e) {
+        debugPrint('❌ Ошибка загрузки модели шумоподавления: $e');
+      }
 
-      _speechRecognitionInterpreter = await Interpreter.fromAsset(
-        'assets/models/speech_recognition_model.tflite',
-        options: options,
-      );
+      try {
+        _speechRecognitionInterpreter = await Interpreter.fromAsset(
+          'assets/models/speech_recognition_model.tflite',
+          options: options,
+        );
+        debugPrint('✅ Модель распознавания речи загружена');
+      } catch (e) {
+        debugPrint('❌ Ошибка загрузки модели распознавания речи: $e');
+      }
 
-      debugPrint('✅ Модели загружены');
     } catch (e) {
-      debugPrint('❌ Ошибка загрузки моделей: $e');
+      debugPrint('❌ Общая ошибка загрузки моделей: $e');
     }
   }
 
@@ -56,31 +66,56 @@ class TFLiteService with ChangeNotifier {
   AccentProfile getAccentProfile() => _accentProfile;
 
   List<double> _runNoiseReduction(List<double> audio, List<double> noise) {
-    final inputAudio = [audio];
-    final inputNoise = [noise];
+    try {
+      // Создаем входные тензоры
+      final inputAudio = [audio];
+      final inputNoise = [noise];
 
-    final output = List.generate(1, (_) => List.filled(audio.length, 0.0));
+      // Создаем выходной тензор
+      final output = List<double>.filled(audio.length, 0.0);
+      final outputs = {0: [output]};
 
-    Map<int, Object> outputs = {0: output};
-    _noiseReductionInterpreter.runForMultipleInputs([inputAudio, inputNoise], outputs);
-    return output.first;
+      // Создаем входы
+      final inputs = [inputAudio, inputNoise];
+
+      // Запускаем инференс
+      _noiseReductionInterpreter.runForMultipleInputs(inputs, outputs);
+
+      // Возвращаем результат
+      return outputs[0]![0];
+    } catch (e) {
+      debugPrint('❌ Ошибка шумоподавления: $e');
+      return audio; // Возвращаем исходное аудио в случае ошибки
+    }
   }
 
   String _runSpeechRecognition(List<double> audio, List<double> accent) {
-    final inputAudio = [audio];
-    final inputAccent = [accent];
+    try {
+      // Создаем входные тензоры
+      final inputAudio = [audio];
+      final inputAccent = [accent];
 
-    final output = List.filled(1 * 6, 0.0).reshape([1, 6]);
+      // Создаем выходной тензор
+      final output = List<double>.filled(6, 0.0);
+      final outputs = {0: [output]};
 
-    Map<int, Object> outputs = {0: output};
-    _speechRecognitionInterpreter.runForMultipleInputs([inputAudio, inputAccent], outputs);
+      // Создаем входы
+      final inputs = [inputAudio, inputAccent];
 
-    final scores = output.first;
-    final maxScore = scores.reduce((a, b) => a > b ? a : b);
-    final commandIndex = scores.indexOf(maxScore);
+      // Запускаем инференс
+      _speechRecognitionInterpreter.runForMultipleInputs(inputs, outputs);
 
-    const commands = ['открыть', 'закрыть', 'позвонить', 'сообщение', 'музыка', 'погода'];
-    return commands[commandIndex];
+      // Получаем результат
+      final scores = outputs[0]![0];
+      final maxScore = scores.reduce((a, b) => a > b ? a : b);
+      final commandIndex = scores.indexOf(maxScore);
+
+      const commands = ['открыть', 'закрыть', 'позвонить', 'сообщение', 'музыка', 'погода'];
+      return commandIndex < commands.length ? commands[commandIndex] : 'неизвестно';
+    } catch (e) {
+      debugPrint('❌ Ошибка распознавания речи: $e');
+      return 'ошибка';
+    }
   }
 
   Future<void> runInference({
