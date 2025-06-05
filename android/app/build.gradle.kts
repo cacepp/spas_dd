@@ -46,5 +46,7 @@ flutter {
 }
 
 dependencies {
-    implementation("org.tensorflow:tensorflow-lite-select-tf-ops:2.14.0")
+    implementation("org.tensorflow:tensorflow-lite:2.12.0")
+    implementation("org.tensorflow:tensorflow-lite-select-tf-ops:2.12.0")
+    implementation("org.tensorflow:tensorflow-lite-support:0.4.3")
 }

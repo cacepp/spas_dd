@@ -61,7 +61,8 @@ class TFLiteService with ChangeNotifier {
 
     final output = List.generate(1, (_) => List.filled(audio.length, 0.0));
 
-    _noiseReductionInterpreter.runForMultipleInputs([inputAudio, inputNoise], [output] as Map<int, Object>);
+    Map<int, Object> outputs = {0: output};
+    _noiseReductionInterpreter.runForMultipleInputs([inputAudio, inputNoise], outputs);
     return output.first;
   }
 
@@ -71,7 +72,8 @@ class TFLiteService with ChangeNotifier {
 
     final output = List.filled(1 * 6, 0.0).reshape([1, 6]);
 
-    _speechRecognitionInterpreter.runForMultipleInputs([inputAudio, inputAccent], [output] as Map<int, Object>);
+    Map<int, Object> outputs = {0: output};
+    _speechRecognitionInterpreter.runForMultipleInputs([inputAudio, inputAccent], outputs);
 
     final scores = output.first;
     final maxScore = scores.reduce((a, b) => a > b ? a : b);
