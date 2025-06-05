@@ -43,6 +43,7 @@ def create_noise_reduction_model():
 
     print("✅ Модель шумоподавления создана")
 
+    
     # Конвертация в TFLite
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     converter.optimizations = [tf.lite.Optimize.DEFAULT]
@@ -52,6 +53,7 @@ def create_noise_reduction_model():
         tf.lite.OpsSet.TFLITE_BUILTINS,
         tf.lite.OpsSet.SELECT_TF_OPS
     ]
+    converter.target_spec.supported_versions = [1, 2]
     converter._experimental_lower_tensor_list_ops = False
 
     tflite_model = converter.convert()

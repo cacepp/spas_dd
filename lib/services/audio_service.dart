@@ -41,8 +41,20 @@ class AudioService with ChangeNotifier {
     await _recorder.startRecorder(
       codec: Codec.pcm16,
       sampleRate: 16000,
-      numChannels: 1
+      numChannels: 1,
+      toStream: true,  // Добавьте это
     );
+
+    // Добавьте обработку потока
+    _recorder.onProgress!.listen((event) {
+      if (event.decibels != null) {
+        final buffer = event.buffer;
+        if (buffer != null) {
+          final samples = _convertToFloat32(buffer);
+          _recordedSamples.addAll(samples);
+        }
+      }
+    });
   }
 
   Future<void> stopRecording() async {
